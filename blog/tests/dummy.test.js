@@ -40,7 +40,7 @@ describe('total likes', () => {
 	})
 })
 
-test('favorite blog', () => {
+describe('favorite blog', () => {
 	const blogs = [
 		{
 			_id: "5a422a851b54a676234d17f7",
@@ -92,7 +92,10 @@ test('favorite blog', () => {
 		}
 	]
 
-	const result = listHelper.favoriteBlog(blogs)
+	test('correctly selects the most liked', () => {
+		const result = listHelper.favoriteBlog(blogs)
 
-	assert.deepStrictEqual(result, blogs[2])
+		assert.deepStrictEqual(result, blogs[2])
+	})
 })
+
