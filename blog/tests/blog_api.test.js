@@ -38,7 +38,7 @@ describe('get blogs', () => {
 	})
 })
 
-describe('post blogs', () => {
+describe('post blog', () => {
 	test('a valid blog can be added', async () => {
 		const newBlog = {
 			title: 'New blog',
@@ -104,7 +104,22 @@ describe('post blogs', () => {
 			.send(newBlog2)
 			.expect(400)
 	})
+})
 
+describe('delete blog', () => {
+	test('a blog can be deleted by id', async () => {
+		const blogs = await blogsInDb()
+
+		const blogToDelete = blogs[0]
+
+		await api
+			.delete(`/api/blogs/${blogToDelete.id}`)
+			.expect(204)
+
+		const response = await api.get('/api/blogs')
+
+		assert.strictEqual(response.body.length, initialBlogs.length - 1)
+	})
 })
 
 after(async () => {
