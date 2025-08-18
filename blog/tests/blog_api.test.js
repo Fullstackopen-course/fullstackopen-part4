@@ -36,8 +36,32 @@ describe('get blogs', () => {
 		const ids = blogs.map(blog => blog.id)
 		assert.strictEqual(ids.length, new Set(ids).size)
 	})
+})
 
-	after(async () => {
-	  await mongoose.connection.close()
+describe('post blogs', () => {
+	test('a valid blog can be added', async () => {
+		const newBlog = {
+			title: 'New blog',
+			author: 'John Doe',
+			url: 'https://johndoe.com/',
+			likes: 1
+		}
+
+		await api
+			.post('/api/blogs')
+			.send(newBlog)
+			.expect(201)
+			.expect('Content-Type', /application\/json/)
+
+		const response = await api.get('/api/blogs')
+
+		const titles = response.body.map(b => b.title)
+
+		assert.strictEqual(response.body.length, initialBlogs.length + 1)
+		assert(titles.includes(newBlog.title))
 	})
+})
+
+after(async () => {
+  await mongoose.connection.close()
 })
