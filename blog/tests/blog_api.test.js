@@ -8,8 +8,7 @@ const { initialBlogs, blogsInDb } = require('./utils/test_helper')
 
 const api = supertest(app)
 
-describe('get blogs', () => {
-	beforeEach(async () => {
+beforeEach(async () => {
 		await Blog.deleteMany({})
 
 		const BlogObjects = initialBlogs.map((blog) => new Blog(blog))
@@ -17,6 +16,7 @@ describe('get blogs', () => {
 		await Promise.all(promiseArray)
 	})
 
+describe('get blogs', () => {
 	test('blogs are returned as json', async () => {
 	  await api
 		.get('/api/blogs')
@@ -59,6 +59,27 @@ describe('post blogs', () => {
 
 		assert.strictEqual(response.body.length, initialBlogs.length + 1)
 		assert(titles.includes(newBlog.title))
+	})
+
+	test('request without like property defaults it to 0', async () => {
+		const newBlog = {
+			author: 'John Doe',
+			url: 'https://johndoe.com/',
+			title: 'New blog'
+		}
+
+		await api
+			.post('/api/blogs')
+			.send(newBlog)
+			.expect(201)
+			.expect('Content-Type', /application\/json/)
+
+		const response = await api.get('/api/blogs')
+
+		const blog = response.body.find(b => b.title === newBlog.title)
+
+		assert.strictEqual(response.body.length, initialBlogs.length + 1)
+		assert(blog.likes === 0)
 	})
 })
 
