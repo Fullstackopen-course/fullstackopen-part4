@@ -4,7 +4,7 @@ const supertest = require('supertest')
 const app = require('../app')
 const assert = require('node:assert')
 const Blog = require('../models/blog')
-const { initialBlogs } = require('./utils/test_helper')
+const { initialBlogs, blogsInDb } = require('./utils/test_helper')
 
 const api = supertest(app)
 
@@ -28,6 +28,13 @@ describe('get blogs', () => {
 		const response = await api.get('/api/blogs')
 
 		assert.strictEqual(response.body.length, initialBlogs.length)
+	})
+
+	test('all blogs are uniquely identified by id property', async () => {
+		const blogs = await blogsInDb()
+
+		const ids = blogs.map(blog => blog.id)
+		assert.strictEqual(ids.length, new Set(ids).size)
 	})
 
 	after(async () => {
