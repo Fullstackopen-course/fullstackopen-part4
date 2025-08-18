@@ -81,6 +81,30 @@ describe('post blogs', () => {
 		assert.strictEqual(response.body.length, initialBlogs.length + 1)
 		assert(blog.likes === 0)
 	})
+
+	test('request without title or url properties returns 400 Bad Request', async () => {
+		const newBlog = {
+			title: 'New blog',
+			author: 'John Doe',
+			likes: 1
+		}
+		const newBlog2 = {
+			url: 'https://johndoe.com/',
+			author: 'John Doe',
+			likes: 1
+		}
+
+		await api
+			.post('/api/blogs')
+			.send(newBlog)
+			.expect(400)
+
+		await api
+			.post('/api/blogs')
+			.send(newBlog2)
+			.expect(400)
+	})
+
 })
 
 after(async () => {
