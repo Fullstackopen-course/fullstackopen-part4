@@ -122,6 +122,50 @@ describe('delete blog', () => {
 	})
 })
 
+describe('delete blog', () => {
+	test('a blog can be deleted by id', async () => {
+		const blogs = await blogsInDb()
+
+		const blogToDelete = blogs[0]
+
+		await api
+			.delete(`/api/blogs/${blogToDelete.id}`)
+			.expect(204)
+
+		const response = await api.get('/api/blogs')
+
+		assert.strictEqual(response.body.length, initialBlogs.length - 1)
+	})
+})
+
+describe('update blog', () => {
+	test('a blog can be updated by id', async () => {
+		const blogs = await blogsInDb()
+
+		const blogToUpdate = blogs[0]
+
+		const updatedBlog = {
+			title: 'Updated blog',
+			author: 'John Doe',
+			url: 'https://johndoe.com/',
+			likes: 1
+		}
+
+		await api
+			.put(`/api/blogs/${blogToUpdate.id}`)
+			.send(updatedBlog)
+			.expect(200)
+			.expect('Content-Type', /application\/json/)
+
+		const response = await api.get('/api/blogs')
+
+		const blog = response.body.find(b => b.id === blogToUpdate.id)
+
+		assert.strictEqual(response.body.length, initialBlogs.length)
+		assert(blog.title === updatedBlog.title)
+	})
+})
+
 after(async () => {
   await mongoose.connection.close()
 })
