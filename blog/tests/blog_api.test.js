@@ -230,8 +230,34 @@ describe('users', () => {
 			const usernames = usersAtEnd.map(u => u.username)
 			assert(usernames.includes(newUser.username))
 		})
-	})
 
+		test('creation fails with proper statuscode and message if username is non unique', async () => {
+			const newUser = initialUsers[0]
+
+			await api
+				.post('/api/users')
+				.send(newUser)
+				.expect(400)
+				.expect('Content-Type', /application\/json/)
+				.expect({
+					error: 'expected `username` to be unique'
+				})
+		})
+
+		test('creation fails with proper status code and message if password is too short', async () => {
+			let newUser = initialUsers[0]
+			newUser.password = '12'
+
+			await api
+				.post('/api/users')
+				.send(newUser)
+				.expect(400)
+				.expect('Content-Type', /application\/json/)
+				.expect({
+					error: 'password must be at least 3 characters long'
+				})
+		})
+	})
 })
 
 
