@@ -47,7 +47,7 @@ blogRouter.delete('/:id', async (req, res) => {
 	}
 
 	const blog = await Blog.findById(req.params.id)
-	if (blog.user.toString() !== user.id)
+	if (blog.user.toString() !== user.id.toString())
 		res
 			.status(401)
 			.json({error: 'unauthorized operation'})
