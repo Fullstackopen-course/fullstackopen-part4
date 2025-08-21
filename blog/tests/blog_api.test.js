@@ -1,4 +1,4 @@
-const { test, after, beforeEach, describe } = require('node:test')
+const { after, beforeEach, describe, it} = require('node:test')
 const mongoose = require('mongoose')
 const supertest = require('supertest')
 const bcrypt = require('bcrypt')
@@ -12,28 +12,48 @@ const api = supertest(app)
 
 describe('blogs', () => {
 	beforeEach(async () => {
+		await User.deleteMany({})
 		await Blog.deleteMany({})
 
-		const BlogObjects = initialBlogs.map((blog) => new Blog(blog))
-		const promiseArray = BlogObjects.map((blog) => blog.save())
-		await Promise.all(promiseArray)
+		const user1 = new User({
+			username: 'user1',
+			name: 'user1',
+			passwordHash: await bcrypt.hash('password1', 10)
+		})
+		const savedUser1 = await user1.save()
+
+		const user2 = new User({
+			username: 'user2',
+			name: 'user2',
+			passwordHash: await bcrypt.hash('password2', 10)
+		})
+		await user2.save()
+
+		for (const blog of initialBlogs) {
+			const newBlog = new Blog(blog)
+			newBlog.user = savedUser1._id
+			const savedBlog = await newBlog.save()
+			savedUser1.blogs = savedUser1.blogs.concat(savedBlog._id)
+		}
+
+		await savedUser1.save()
 	})
 
 	describe('get blogs', () => {
-		test('blogs are returned as json', async () => {
-		await api
-			.get('/api/blogs')
-			.expect(200)
-			.expect('Content-Type', /application\/json/)
+		it('blogs are returned as json', async () => {
+			await api
+				.get('/api/blogs')
+				.expect(200)
+				.expect('Content-Type', /application\/json/)
 		})
 
-		test('amount of blogs is correct', async () => {
+		it('amount of blogs is correct', async () => {
 			const response = await api.get('/api/blogs')
 
 			assert.strictEqual(response.body.length, initialBlogs.length)
 		})
 
-		test('all blogs are uniquely identified by id property', async () => {
+		it('all blogs are uniquely identified by id property', async () => {
 			const blogs = await blogsInDb()
 
 			const ids = blogs.map(blog => blog.id)
@@ -42,16 +62,42 @@ describe('blogs', () => {
 	})
 
 	describe('post blog', () => {
-		test('a valid blog can be added', async () => {
+		let tokenUser1 = null
+		let tokenUser2 = null
+
+		beforeEach(async () => {
+			const resUser1 = await api
+				.post('/api/login')
+				.send(
+					{
+						username: 'user1',
+						password: 'password1'
+					}
+				)
+			tokenUser1 = resUser1.body.token
+
+			const resUser2 = await api
+				.post('/api/login')
+				.send(
+					{
+						username: 'user2',
+						password: 'password2'
+					}
+				)
+			tokenUser2 = resUser2.body.token
+		})
+
+		it('successful creation of a new blog by logged user 1', async () => {
 			const newBlog = {
 				title: 'New blog',
-				author: 'John Doe',
-				url: 'https://johndoe.com/',
+				author: 'user1',
+				url: 'https://newblog.com/',
 				likes: 1
 			}
 
-			await api
+			const res = await api
 				.post('/api/blogs')
+				.set('Authorization', `Bearer ${tokenUser1}`)
 				.send(newBlog)
 				.expect(201)
 				.expect('Content-Type', /application\/json/)
@@ -64,7 +110,38 @@ describe('blogs', () => {
 			assert(titles.includes(newBlog.title))
 		})
 
-		test('request without like property defaults it to 0', async () => {
+		it('failed creation of a new blog by invalid token', async () => {
+			const newBlog = {
+				title: 'New blog',
+				author: 'user1',
+				url: 'https://newblog.com/',
+				likes: 1
+			}
+
+			await api
+				.post('/api/blogs')
+				.set('Authorization', `Bearer ${null}`)
+				.send(newBlog)
+				.expect(401)
+				.expect('Content-Type', /application\/json/)
+		})
+
+		it('failed creation of a new blog if not providing token', async () => {
+			const newBlog = {
+				title: 'New blog',
+				author: 'user1',
+				url: 'https://newblog.com/',
+				likes: 1
+			}
+
+			await api
+				.post('/api/blogs')
+				.send(newBlog)
+				.expect(401)
+				.expect('Content-Type', /application\/json/)
+		})
+
+		it('request without like property defaults it to 0', async () => {
 			const newBlog = {
 				author: 'John Doe',
 				url: 'https://johndoe.com/',
@@ -73,6 +150,7 @@ describe('blogs', () => {
 
 			await api
 				.post('/api/blogs')
+				.set('Authorization', `Bearer ${tokenUser1}`)
 				.send(newBlog)
 				.expect(201)
 				.expect('Content-Type', /application\/json/)
@@ -85,7 +163,7 @@ describe('blogs', () => {
 			assert(blog.likes === 0)
 		})
 
-		test('request without title or url properties returns 400 Bad Request', async () => {
+		it('request without title or url properties returns 400 Bad Request', async () => {
 			const newBlog = {
 				title: 'New blog',
 				author: 'John Doe',
@@ -99,50 +177,73 @@ describe('blogs', () => {
 
 			await api
 				.post('/api/blogs')
+				.set('Authorization', `Bearer ${tokenUser1}`)
 				.send(newBlog)
 				.expect(400)
 
 			await api
 				.post('/api/blogs')
+				.set('Authorization', `Bearer ${tokenUser1}`)
 				.send(newBlog2)
 				.expect(400)
 		})
 	})
 
 	describe('delete blog', () => {
-		test('a blog can be deleted by id', async () => {
+		let tokenUser1 = null
+		let tokenUser2 = null
+
+		beforeEach(async () => {
+			const resUser1 = await api
+				.post('/api/login')
+				.send(
+					{
+						username: 'user1',
+						password: 'password1'
+					}
+				)
+			tokenUser1 = resUser1.body.token
+
+			const resUser2 = await api
+				.post('/api/login')
+				.send(
+					{
+						username: 'user2',
+						password: 'password2'
+					}
+				)
+			tokenUser2 = resUser2.body.token
+		})
+
+		it('a blog can be deleted by id, by its valid logged in user owner', async () => {
 			const blogs = await blogsInDb()
 
 			const blogToDelete = blogs[0]
 
 			await api
 				.delete(`/api/blogs/${blogToDelete.id}`)
+				.set('Authorization', `Bearer ${tokenUser1}`)
 				.expect(204)
 
 			const response = await api.get('/api/blogs')
 
 			assert.strictEqual(response.body.length, initialBlogs.length - 1)
 		})
-	})
 
-	describe('delete blog', () => {
-		test('a blog can be deleted by id', async () => {
+		it('a blog cant be deleted by id, by a valid logged user that is not its owner', async () => {
 			const blogs = await blogsInDb()
 
 			const blogToDelete = blogs[0]
 
 			await api
 				.delete(`/api/blogs/${blogToDelete.id}`)
-				.expect(204)
-
-			const response = await api.get('/api/blogs')
-
-			assert.strictEqual(response.body.length, initialBlogs.length - 1)
+				.set('Authorization', `Bearer ${tokenUser2}`)
+				.expect(401)
 		})
 	})
 
 	describe('update blog', () => {
-		test('a blog can be updated by id', async () => {
+		it('a blog can be updated by id', async () => {
 			const blogs = await blogsInDb()
 
 			const blogToUpdate = blogs[0]
@@ -186,20 +287,20 @@ describe('users', () => {
 	})
 
 	describe('get users', () => {
-		test('users are returned as json', async () => {
+		it('users are returned as json', async () => {
 		await api
 			.get('/api/users')
 			.expect(200)
 			.expect('Content-Type', /application\/json/)
 		})
 
-		test('amount of users is correct', async () => {
+		it('amount of users is correct', async () => {
 			const response = await api.get('/api/users')
 
 			assert.strictEqual(response.body.length, initialUsers.length)
 		})
 
-		test('all users are uniquely identified by id property', async () => {
+		it('all users are uniquely identified by id property', async () => {
 			const res = await api.get('/api/users')
 			const users = res.body
 
@@ -209,7 +310,7 @@ describe('users', () => {
 	})
 
 	describe('post user', () => {
-		test('creation succeeds with a new username', async () => {
+		it('creation succeeds with a new username', async () => {
 			const usersAtStart = await usersInDb()
 
 			const newUser = {
@@ -231,7 +332,7 @@ describe('users', () => {
 			assert(usernames.includes(newUser.username))
 		})
 
-		test('creation fails with proper statuscode and message if username is non unique', async () => {
+		it('creation fails with proper statuscode and message if username is non unique', async () => {
 			const newUser = initialUsers[0]
 
 			await api
@@ -244,7 +345,7 @@ describe('users', () => {
 				})
 		})
 
-		test('creation fails with proper status code and message if password is too short', async () => {
+		it('creation fails with proper status code and message if password is too short', async () => {
 			let newUser = initialUsers[0]
 			newUser.password = '12'
 

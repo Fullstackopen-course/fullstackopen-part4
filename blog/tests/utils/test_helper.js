@@ -1,33 +1,34 @@
 const Blog = require('../../models/blog')
 const User = require('../../models/user')
 
+const initialUsers = [
+	{
+		name: 'user1',
+		username: 'username1',
+		password: 'password1'
+	},
+	{
+		name: 'user2',
+		username: 'username2',
+		password: 'password2'
+	}
+]
+
 const initialBlogs = [
 	{
-		title: 'React patterns',
-		author: 'Michael Chan',
-		url: 'https://reactpatterns.com/',
+		title: 'blog1',
+		author: 'author1',
+		url: 'https://url1.com/',
 		likes: 7,
 	},
 	{
-		title: 'Go To Statement Considered Harmful',
-		author: 'Edsger W. Dijkstra',
-		url: 'http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html',
+		title: 'blog2',
+		author: 'author2',
+		url: 'http://url2.com/',
 		likes: 5,
 	}
 ]
 
-const initialUsers = [
-	{
-		username: 'root',
-		name: 'Superuser',
-		password: 'password'
-	},
-	{
-		username: 'test',
-		name: 'Test User',
-		password: 'password'
-	}
-]
 
 const blogsInDb = async () => {
 	const blogs = await Blog.find({})
